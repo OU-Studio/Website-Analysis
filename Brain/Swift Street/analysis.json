@@ -1,0 +1,301 @@
+{
+  "methods.json": [
+    {
+      "method": "Collection-scoped overrides via body collection ID",
+      "description": "Apply page-specific styling by scoping rules to the Squarespace body ID `#collection-...` so changes don't leak across the site.",
+      "how_it_works": "Squarespace sets `body#collection-<id>` per page. Custom SCSS nests page-specific rules under that ID (e.g., header padding adjustments and decorative pseudo-elements).",
+      "evidence": [
+        "about.html: body id=\"collection-69cba0b17107114c19150ee1\"",
+        "team.html: body id=\"collection-69cbbb9bbaf1424057a5c8fc\"",
+        "contact.html: body id=\"collection-69cd08ae4c1d8d13e9eedc80\"",
+        "home.html: body id=\"collection-69a0b18e421e4451bef21828\"",
+        "site_scss.scss: #collection-69cbbb9bbaf1424057a5c8fc { ... }",
+        "site_scss.scss: #collection-69cd08ae4c1d8d13e9eedc80 { ... }"
+      ]
+    },
+    {
+      "method": "Section-specific styling via custom section IDs",
+      "description": "Use short, human-assigned section IDs (e.g., `#t-1`, `#a-1`, `#c-1`) as stable hooks for deep layout overrides.",
+      "how_it_works": "Squarespace sections can be assigned an ID in the editor. SCSS targets that ID to reshape internal wrappers like `.content-wrapper`, `.section-border`, `.section-background`, and grid rows/columns.",
+      "evidence": [
+        "team.html: section id=\"t-1\"",
+        "about.html: section id=\"a-1\"",
+        "contact.html: section id=\"c-1\"",
+        "site_scss.scss: #t-1 { ... }, #t-2 { ... }, #t-3 { ... }",
+        "site_scss.scss: #a-2 { ... }, #a-3 { ... }",
+        "site_scss.scss: #c-1 { ... }, #c-2 { ... }"
+      ]
+    },
+    {
+      "method": "Half-and-half section layout by splitting `.content-wrapper` vs `.section-border` widths",
+      "description": "Create asymmetric split layouts by setting `.content-wrapper` to one width and `.section-border` (and its background) to the remainder, using margins to push each side into position.",
+      "how_it_works": "Within a section ID scope, `.content-wrapper` gets explicit width (e.g., 50–60%) and opposing margin (e.g., `margin-right: 50%`) while `.section-border` gets the complementary width and offset (e.g., `margin-left: 50%`).",
+      "evidence": [
+        "site_scss.scss: #t-1 .content-wrapper { width: 50%; margin-right: 50%; ... }",
+        "site_scss.scss: #t-1 .section-border { width: 50%; margin-left: 50%; }",
+        "site_scss.scss: #c-1 .content-wrapper { width: 60%; margin-right: 40%; ... }",
+        "site_scss.scss: #c-1 .section-border { width: 40%; margin-left: 60%; ... }"
+      ]
+    },
+    {
+      "method": "Decorative rails using pseudo-elements anchored to collection scope",
+      "description": "Inject fixed decorative images (left/right bars) without adding markup by using `:before`/`:after` on the page collection wrapper.",
+      "how_it_works": "Within `#collection-...`, define `&:before` and `&:after` as absolutely positioned blocks with `background-image` pointing to Squarespace-hosted assets; high `z-index` keeps them above content.",
+      "evidence": [
+        "site_scss.scss: #collection-69cbbb9bbaf1424057a5c8fc { &:before { ... leftbar.png } &:after { ... rightbar.png } }"
+      ]
+    },
+    {
+      "method": "Global parallax on body pseudo-elements using CSS variables + rAF scroll loop",
+      "description": "Create subtle background motion by transforming `body:before`/`body:after` with CSS variables updated on scroll.",
+      "how_it_works": "CSS sets `transform: translate3d(0, var(--before-parallax), 0)` on `body:before, body:after`. JS uses `requestAnimationFrame` to update `--before-parallax` and `--after-parallax` based on scrollY with configurable speeds.",
+      "evidence": [
+        "site_scss.scss: body:before, body:after { transform: translate3d(0, var(--before-parallax, 0px), 0); ... }",
+        "site_js.js: document.body.style.setProperty('--before-parallax', ...); setProperty('--after-parallax', ...); requestAnimationFrame(updateParallax)"
+      ]
+    },
+    {
+      "method": "Squarespace SPA-safe JS initialization using `mercury:load`",
+      "description": "Ensure custom JS runs both on first load and after in-site navigation by binding to Squarespace's `mercury:load` event.",
+      "how_it_works": "A single `init()` function is attached to `DOMContentLoaded` and `window.addEventListener('mercury:load', init)`; inside, features are gated by element existence checks.",
+      "evidence": [
+        "site_js.js: document.addEventListener('DOMContentLoaded', init); window.addEventListener('mercury:load', init);"
+      ]
+    },
+    {
+      "method": "Feature gating by section presence checks",
+      "description": "Only run feature logic on pages/sections that include the required DOM nodes.",
+      "how_it_works": "Use jQuery `if ($('#<id>').length) { ... }` to conditionally bind listeners or initialize plugins, preventing errors on other pages.",
+      "evidence": [
+        "site_js.js: if($('#a-3').length){ ... }",
+        "site_js.js: if($('#t-3').length){ ... slick init ... }"
+      ]
+    },
+    {
+      "method": "SVG animation driven by scroll transform on internal SVG parts",
+      "description": "Animate SVG components by rotating specific SVG element IDs in response to scroll position.",
+      "how_it_works": "Select the SVG root (`#cogs`) and specific sub-elements (`#top`, `#bottom`, `#center`). On scroll, set `style.transform = rotate(...)` for each piece; CSS ensures correct `transform-box` and `transform-origin`.",
+      "evidence": [
+        "site_js.js: const svg = document.querySelector('#cogs'); const cog1 = svg.querySelector('#top'); ... window.addEventListener('scroll', ... rotate ...)",
+        "site_scss.scss: #cogs #top, #center, #bottom { transform-box: fill-box; transform-origin: center; }"
+      ]
+    },
+    {
+      "method": "Marquee-style gallery carousel via Slick with linear autoplay",
+      "description": "Convert a Squarespace gallery into a continuously scrolling strip using Slick carousel settings.",
+      "how_it_works": "On `#t-3`, initialize `$('#t-3 .sqs-gallery').slick({ autoplay: true, autoplaySpeed: 0, speed: 5000, cssEase: 'linear', arrows:false, dots:false, responsive:[...] })` to mimic a marquee.",
+      "evidence": [
+        "site_js.js: if($('#t-3').length){ $('#t-3 .sqs-gallery').slick({ autoplaySpeed: 0, speed: 5000, cssEase: 'linear', ... responsive breakpoint 900 }) }",
+        "site_js.js: includes slick-carousel CDN script/link references"
+      ]
+    },
+    {
+      "method": "Single-block surgical fixes using generated `#block-yui_...` IDs",
+      "description": "Apply one-off layout fixes by targeting Squarespace's generated block IDs when no better stable hook exists.",
+      "how_it_works": "Use the block's unique ID selector to override padding/layout for that exact block only (e.g., applying flex to a code container).",
+      "evidence": [
+        "site_scss.scss: #block-yui_3_17_2_1_1775642834697_3689 { padding: 100px 17px; .sqs-code-container { display: flex; } }"
+      ]
+    },
+    {
+      "method": "Preload/intro timing via delayed body state class",
+      "description": "Coordinate CSS-driven intro states by adding a `loaded` class to the body after a short delay.",
+      "how_it_works": "JS runs `setTimeout(() => $('body').addClass('loaded'), 800)`; CSS can key transitions off `body.loaded` (not shown in snippets, but implied by the pattern).",
+      "evidence": [
+        "site_js.js: setTimeout(function () { $('body').addClass('loaded'); }, 800);"
+      ]
+    }
+  ],
+  "css-patterns.json": [
+    {
+      "pattern": "Page isolation via `#collection-<id>`",
+      "rule": "When a change is page-specific (header spacing, decorative overlays), it is nested under the page collection ID to avoid global side effects.",
+      "example_selector": "#collection-69cbbb9bbaf1424057a5c8fc .header-inner"
+    },
+    {
+      "pattern": "Section hooks use short semantic IDs",
+      "rule": "Custom section IDs follow a compact prefix-number scheme (`a-*`, `t-*`, `c-*`, `l-*`) and serve as the primary layout override points.",
+      "example_selector": "#t-1 .content-wrapper"
+    },
+    {
+      "pattern": "Squarespace wrapper reshaping instead of adding markup",
+      "rule": "Layout is achieved by overriding Squarespace structural wrappers (`.content-wrapper`, `.section-border`, `.section-background`) rather than relying on custom HTML structure.",
+      "example_selector": "#c-1 .section-border"
+    },
+    {
+      "pattern": "Split layout uses complementary widths + opposing margins",
+      "rule": "Two-panel sections are formed by explicit width splits (50/50, 60/40) and margin offsets (left/right) applied to `.content-wrapper` and `.section-border`.",
+      "example_selector": "#t-1 .section-border { width: 50%; margin-left: 50%; }"
+    },
+    {
+      "pattern": "Decoration via pseudo-elements with hosted assets",
+      "rule": "Background decorations are frequently injected with `:before`/`:after` blocks and `background-image` URLs pointing to Squarespace static assets.",
+      "example_selector": "#collection-69cbbb9bbaf1424057a5c8fc:before"
+    },
+    {
+      "pattern": "Heavy use of `!important` to defeat theme defaults",
+      "rule": "Overrides often append `!important` on padding/margins/min-height/backgrounds to out-prioritize Squarespace and template styles.",
+      "example_selector": "#c-1 { margin-top: 200px !important; }"
+    },
+    {
+      "pattern": "Responsive breakpoints are primarily max-width 900px",
+      "rule": "Mobile/tablet adjustments are clustered around a `max-width: 900px` breakpoint for typography and layout constraints.",
+      "example_selector": "@media all and (max-width: 900px) { ... }"
+    },
+    {
+      "pattern": "Grid-to-flex conversion inside `.row` for alignment control",
+      "rule": "When Squarespace grid behavior is limiting, `.row` is converted to flex and child spans are aligned/weighted via nested selectors.",
+      "example_selector": "#c-2 .span-12 > .row { display: flex; align-items: flex-end; }"
+    },
+    {
+      "pattern": "Ordinal/step labeling via `:nth-of-type(n):before`",
+      "rule": "Repeated elements are auto-numbered using `:nth-of-type` selectors that set `content: '1'`, `content: '2'`, etc.",
+      "example_selector": "p:nth-of-type(3):before"
+    },
+    {
+      "pattern": "Custom typography via @font-face from Squarespace static URLs",
+      "rule": "Brand fonts are self-hosted on Squarespace and registered through multiple `@font-face` declarations.",
+      "example_selector": "@font-face { font-family: 'parkson'; src: url(...Parkson-SemiBold.otf) }"
+    },
+    {
+      "pattern": "Global motion uses CSS variables on body pseudo-elements",
+      "rule": "A single global parallax system is expressed in CSS as transforms on `body:before` and `body:after` driven by CSS variables.",
+      "example_selector": "body:before, body:after { transform: translate3d(0, var(--before-parallax, 0px), 0); }"
+    }
+  ],
+  "js-patterns.json": [
+    {
+      "pattern": "Dual lifecycle init (first load + SPA navigation)",
+      "rule": "Always bind initialization to both `DOMContentLoaded` and Squarespace `mercury:load`.",
+      "trigger": "Page load or in-site navigation that triggers `mercury:load`"
+    },
+    {
+      "pattern": "Section-gated feature activation",
+      "rule": "Wrap every feature in an element existence check keyed to section IDs to avoid cross-page runtime errors.",
+      "trigger": "Presence of a section hook like `#a-3` or `#t-3` in the DOM"
+    },
+    {
+      "pattern": "Slick carousel used as a marquee strip",
+      "rule": "Initialize Slick with `autoplaySpeed: 0`, long `speed`, and `cssEase: 'linear'` for continuous scrolling.",
+      "trigger": "Presence of `#t-3` (and its `.sqs-gallery`) on the page"
+    },
+    {
+      "pattern": "Scroll-driven animation via direct style transforms",
+      "rule": "Use `window.addEventListener('scroll', ...)` to set transforms on key elements (SVG parts) based on `window.scrollY`.",
+      "trigger": "Presence of `#a-3` (and SVG `#cogs`) on the page"
+    },
+    {
+      "pattern": "Global parallax uses requestAnimationFrame throttling",
+      "rule": "On scroll, throttle updates with a `ticking` flag and update CSS variables inside `requestAnimationFrame`.",
+      "trigger": "Any scroll event after the parallax IIFE runs"
+    },
+    {
+      "pattern": "CSS-state timing via delayed body class",
+      "rule": "Use a fixed timeout to add a `loaded` class for coordinating CSS transitions with perceived load timing.",
+      "trigger": "Always runs during init (after ~800ms)"
+    }
+  ],
+  "squarespace-rules.json": [
+    "Assign explicit section IDs in Squarespace (e.g., a-*, t-*, c-*) and treat them as the primary long-lived styling/JS hooks.",
+    "Keep page-specific changes scoped under `body#collection-<id>` to prevent accidental global bleed.",
+    "Prefer overriding Squarespace structural wrappers (`.content-wrapper`, `.section-border`, `.section-background`) rather than adding heavy custom HTML.",
+    "Use pseudo-elements for decorative graphics to avoid extra blocks/markup and keep the editor content clean.",
+    "When Squarespace’s grid constraints get in the way, convert `.row` containers to flex inside section scopes for precise alignment.",
+    "For SPA reliability in Squarespace 7.1, bind JS init to both `DOMContentLoaded` and `mercury:load`, and gate features by DOM presence checks.",
+    "Use generated block IDs (`#block-yui_...`) only for truly one-off fixes where no stable semantic hook exists."
+  ],
+  "layout-strategies.json": [
+    {
+      "strategy": "Split-panel sections using native section wrappers",
+      "description": "Construct two-column/dual-surface sections by treating `.content-wrapper` and `.section-border` as independent panels with complementary widths and offsets.",
+      "techniques": [
+        "Section-specific styling via custom section IDs",
+        "Half-and-half section layout by splitting `.content-wrapper` vs `.section-border` widths"
+      ]
+    },
+    {
+      "strategy": "Decorative framing without editor markup",
+      "description": "Add site/page framing elements (side rails, overlays) through `:before`/`:after` on collection-scoped selectors, keeping the CMS content minimal.",
+      "techniques": [
+        "Decorative rails using pseudo-elements anchored to collection scope",
+        "Collection-scoped overrides via body collection ID"
+      ]
+    },
+    {
+      "strategy": "Global motion layer driven by CSS variables",
+      "description": "Create a lightweight parallax/motion system by animating `body` pseudo-elements with CSS variables updated via rAF on scroll.",
+      "techniques": [
+        "Global parallax on body pseudo-elements using CSS variables + rAF scroll loop"
+      ]
+    },
+    {
+      "strategy": "Interactive accents tied to section presence",
+      "description": "Attach animation and plugin behaviors only where needed by gating JS on section IDs, enabling reuse of a single site-wide script safely.",
+      "techniques": [
+        "Squarespace SPA-safe JS initialization using `mercury:load`",
+        "Feature gating by section presence checks",
+        "SVG animation driven by scroll transform on internal SVG parts",
+        "Marquee-style gallery carousel via Slick with linear autoplay"
+      ]
+    },
+    {
+      "strategy": "Override Squarespace grid behavior with scoped flex",
+      "description": "Within targeted sections, convert grid rows to flex for bottom alignment, asymmetric padding, and custom column sizing beyond template defaults.",
+      "techniques": [
+        "Section-specific styling via custom section IDs",
+        "Grid-to-flex conversion inside `.row` for alignment control"
+      ]
+    }
+  ],
+  "examples": {
+    "home.json": {
+      "page": "home",
+      "key_techniques": [
+        "Collection-scoped overrides via body collection ID",
+        "Global parallax on body pseudo-elements using CSS variables + rAF scroll loop",
+        "Squarespace SPA-safe JS initialization using `mercury:load`"
+      ],
+      "notable_patterns": [
+        "body scoped as #collection-69a0b18e421e4451bef21828"
+      ],
+      "why_it_matters": "Home establishes the global runtime patterns (init lifecycle + parallax variables) that can be reused site-wide without coupling to a single page."
+    },
+    "about.json": {
+      "page": "about",
+      "key_techniques": [
+        "Section-specific styling via custom section IDs",
+        "Feature gating by section presence checks"
+      ],
+      "notable_patterns": [
+        "Section id hooks (e.g., a-1) exist in markup and are expected in SCSS/JS gating",
+        "body scoped as #collection-69cba0b17107114c19150ee1"
+      ],
+      "why_it_matters": "About demonstrates the core approach: editorial sections are given stable IDs and then reshaped by targeting Squarespace wrapper elements."
+    },
+    "team.json": {
+      "page": "team",
+      "key_techniques": [
+        "Half-and-half section layout by splitting `.content-wrapper` vs `.section-border` widths",
+        "Decorative rails using pseudo-elements anchored to collection scope",
+        "Marquee-style gallery carousel via Slick with linear autoplay"
+      ],
+      "notable_patterns": [
+        "body scoped as #collection-69cbbb9bbaf1424057a5c8fc",
+        "Sections include id=\"t-1\" and related t-* hooks used in SCSS/JS"
+      ],
+      "why_it_matters": "Team is the clearest example of the methodology combining: page-scoped decoration, section-scoped layout overrides, and section-gated JS plugins."
+    },
+    "contact.json": {
+      "page": "contact",
+      "key_techniques": [
+        "Half-and-half section layout by splitting `.content-wrapper` vs `.section-border` widths",
+        "Grid-to-flex conversion inside `.row` for alignment control"
+      ],
+      "notable_patterns": [
+        "body scoped as #collection-69cd08ae4c1d8d13e9eedc80",
+        "Sections include id=\"c-1\" / \"c-2\" hooks referenced in SCSS"
+      ],
+      "why_it_matters": "Contact highlights the practice of making complex layouts from Squarespace’s native wrappers instead of custom markup, keeping the editor structure simple."
+    }
+  }
+}
